@@ -1,0 +1,131 @@
+# -*- coding: utf-8 -*-
+
+#"""
+from sklearn.feature_extraction.text import TfidfTransformer 
+import csv
+import numpy as np
+from sklearn.feature_extraction.text import CountVectorizer 
+import matplotlib.pyplot as plt 
+from sklearn.cluster import KMeans
+from sklearn.decomposition import PCA, IncrementalPCA
+import matplotlib.pyplot as plt
+
+whole_list = []
+count = CountVectorizer() 
+tfidf = TfidfTransformer() 
+with open('log.csv', 'rb') as csvfile:
+    spamreader = csv.reader(csvfile)
+    list_of_words = []
+    all_msg = []
+    word = ''
+    msg_list = []
+    
+    for row in spamreader:
+        list_of_words = []
+        word = ''
+        for letter in row[0]:          
+            if [' ', ',', '.',':'].count(letter) == 0:
+                word += letter
+            else:
+                if word is not '':
+                    list_of_words.append(word)  
+                    word = ''
+        if word is not '':
+                list_of_words.append(word)    
+        whole_list.append(row)
+        all_msg.append(row[0])
+print all_msg
+bag = count.fit_transform(all_msg) 
+print bag
+term = count.vocabulary_
+print term
+print(bag.toarray()) 
+b_o_w = bag.toarray()
+np.set_printoptions(precision=2)
+tfidf_result = tfidf.fit_transform(count.fit_transform(all_msg)).toarray()
+print(tfidf.fit_transform(count.fit_transform(all_msg)).toarray())
+
+cluster_num = 6
+km = KMeans(n_clusters=cluster_num,        
+            init='random',            
+            n_init=10,              
+            max_iter=300,              
+            tol=1e-04,              
+            random_state=0) 
+            
+km_result = km.fit_predict(tfidf_result)
+
+n_components = 2
+ipca = IncrementalPCA(n_components=n_components, batch_size=10)
+X_ipca = ipca.fit_transform(tfidf_result)
+
+clusters = []
+for ii in  [0,1,2,3,4,5]:
+    clusters.append([])
+    for jj in range(len(X_ipca)):
+        if km_result[jj] == ii:
+            clusters[-1].append(X_ipca[jj])
+            
+for i in range(cluster_num):
+    clusters[i] = np.array(clusters[i])
+    
+plt.figure()
+colors = ["b","g","r","y","c","m"]
+for m in range(cluster_num):   
+    plt.plot(clusters[m][:,0],clusters[m][:,1],
+             color = colors[m])
+             
+plt.show()
+
+def find_largest_index(a):
+    temp = 0
+    index = 0
+    for i in range(len(a)):
+        if a[i] > temp:
+            index = i
+    return index
+    
+def find_key_by_value(d, v):
+    for i, j in d.iteritems():
+        if j == v:
+            return i
+sample_word_num = 5
+sample_word_list = []
+for i in range(cluster_num):
+    sample_word_list.append([])
+    temp_sum = np.array([0]*b_o_w.shape[1])
+    for j in range(len(b_o_w)):
+        if km_result[j] == i:
+            temp_sum = temp_sum + b_o_w[j]
+    for j in range(sample_word_num):
+        k = find_largest_index(temp_sum)
+        
+        sample_word_list[-1].append(find_key_by_value(term, k))
+        temp_sum[k] = -99
+print(sample_word_list)
+#            
+#dataset = pandas.read_csv('temp.csv')            
+#X = dataset.data
+#y = dataset.target
+#n_components = 2
+#ipca = IncrementalPCA(n_components=n_components, batch_size=10)
+#X_ipca = ipca.fit_transform(X)
+#
+#pca = PCA(n_components=n_components)
+#X_pca = pca.fit_transform(X)
+#for X_transformed, title in [(X_ipca, "Incremental PCA"), (X_pca, "PCA")]:
+#    plt.figure(figsize=(8, 8))
+#    for c, i, target_name in zip("rgb", [0, 1, 2], dataset.target_names):
+#        plt.scatter(X_transformed[y == i, 0], X_transformed[y == i, 1],
+#                    c=c, label=target_name)
+#
+#    if "Incremental" in title:
+#        err = np.abs(np.abs(X_pca) - np.abs(X_ipca)).mean()
+#        plt.title(title + " of iris dataset\nMean absolute unsigned error "
+#                  "%.6f" % err)
+#    else:
+#        plt.title(title + " of iris dataset")
+#    plt.legend(loc="best")
+#    plt.axis([-4, 4, -1.5, 1.5])
+#
+#plt.show()
